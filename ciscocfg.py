@@ -16,7 +16,7 @@ _KEYS_L3_INT = {
     'vrf': r'vrf\s*forwarding',
     'status': r'\s*(shutdown)',
     'access_list': r'\s*ip\s*access-group',
-    'ipv4': r'ip\s*address\s*(\d*\.\d*\.\d*\.\d*\s*\d*\.\d*\.\d*\.\d*)\s*$',
+    'ipv4': r'^\s*ip\s*address\s*(\d*\.\d*\.\d*\.\d*\s*\d*\.\d*\.\d*\.\d*)\s*$',
     'ipv4_sec': r'ip\s*address\s*(\d*\.\d*\.\d*\.\d*\s*\d*\.\d*\.\d*\.\d*)\s*secondary',
     'hsrp_num': r'^\s*standby\s*(\d*)\s*ip\s*(.*)',
     'hsrp_ip': r'^\s*standby\s*\d*\s*ip\s*(.*)',
@@ -67,14 +67,19 @@ class L3Interface():
 
     @property
     def dict(self):
-        ipv4_w_prf = f'{self.ipv4.split()[0].strip()}/{IPAddress(self.ipv4.split()[1].strip()).netmask_bits()}'
+        # print(f'{self.name} == {self.ipv4}')
+        ipv4_w_prf = ""
+        ipv4_net_calc = ""
+        if self.ipv4 != "":
+            ipv4_w_prf = f'{self.ipv4.split()[0].strip()}/{IPAddress(self.ipv4.split()[1].strip()).netmask_bits()}'
+            ipv4_net_calc = f'{IPNetwork(ipv4_w_prf).network}/{IPAddress(self.ipv4.split()[1].strip()).netmask_bits()}'
         resp = {
             'name': self.name,
             'desc': self.desc,
             'subint': self.subint,
             'status': self.status,
             'ipv4': f'{ipv4_w_prf}',
-            'ipv4_net': f'{IPNetwork(ipv4_w_prf).network}/{IPAddress(self.ipv4.split()[1].strip()).netmask_bits()}',
+            'ipv4_net': f'{ipv4_net_calc}',
             'ipv4_sec': self.ipv4_sec,
             'net': self.net,
             'hsrp_num': self.hsrp_num,
@@ -101,6 +106,7 @@ class L3Interface():
     def get_all_properties(self, block):
         for key, val in _KEYS_L3_INT.items():
             ret = self._extract_keys(val, block)
+            # print(f'ret: {ret}')
             if ret is not "":
                 # print(f'Key: {key:15s} Val: {ret}')
                 if self.__dict__[key] is "":
@@ -339,13 +345,15 @@ class ListDevices():
     def create_csv_l3_int(self, out_dir="output"):
         self._check_exit_dir(out_dir)
         for cisco in self.hostnames:
-            # print(f'{cisco.hostname}')
+            print(f'{cisco.hostname}\n')
             if cisco.l3_int_entries:
                 with open(f'{out_dir}/{cisco.hostname}_l3_int.csv', 'w') as fs:
                     fs.write(f'NameInt;Desc;Vrf;SubInt;IPv4;IPv4Sec;Status;HSRP_Num;HSRP_IP;HSRP_Pri;IP_Helper\n')
                     for ent in cisco.l3_int_entries:
+                        # print(f'All: {ent.dict}\n')
                         # print(f"VLAN: {ent.name} = {ent.ipv4}")
-                        fs.write('{name};{desc};{vrf};{subint};{ipv4};{ipv4_sec};{status};{hsrp_num};{hsrp_ip};{hsrp_pri};{ip_helper}\n'.format_map(ent.dict))
+                        if ent.ipv4 != "":
+                            fs.write('{name};{desc};{vrf};{subint};{ipv4};{ipv4_sec};{status};{hsrp_num};{hsrp_ip};{hsrp_pri};{ip_helper}\n'.format_map(ent.dict))
 
     def create_csv_l3_int_all(self, out_dir="output"):
         self._check_exit_dir(out_dir)
@@ -356,7 +364,8 @@ class ListDevices():
                 fs.write(f'=====;;;;;;;;;;;;;\n')
                 if cisco.l3_int_entries:
                     for ent in cisco.l3_int_entries:
-                        fs.write(f'{cisco.hostname};' + '{name};{desc};{vrf};{subint};{ipv4};{ipv4_sec};{ipv4_net};{status};{access_list};{hsrp_num};{hsrp_ip};{hsrp_pri};{ip_helper}\n'.format_map(ent.dict))
+                        if ent.ipv4 != "":
+                            fs.write(f'{cisco.hostname};' + '{name};{desc};{vrf};{subint};{ipv4};{ipv4_sec};{ipv4_net};{status};{access_list};{hsrp_num};{hsrp_ip};{hsrp_pri};{ip_helper}\n'.format_map(ent.dict))
 
     def create_csv_l3_int_network(self, out_dir="output"):
         self._check_exit_dir(out_dir)

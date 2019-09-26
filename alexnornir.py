@@ -74,6 +74,7 @@ class AlexNornir:
             if not os.path.exists(f'{self._output_dir}/{prep_name}'):
                 os.makedirs(f'{self._output_dir}/{prep_name}')
             name_file = f'{self._output_dir}/{prep_name}/{fileSave}'
+        # print(f'name_file: {name_file}')
         with open(f'{name_file}', 'w') as f:
             f.write(to_file)
 
@@ -178,7 +179,17 @@ class AlexNornir:
                 self.write_to_file(i.lower(), to_file, flag_config=flag_config)
 
     def get_config(self):
-        self.run_cmds("show running", flag_config=True)
+        res = self._nor.run(task=self.run_cmds_task, cmds='show run')
+        for i in res:
+            to_file = ""
+            self.print_title_host(f'{i}', flag_center=True)
+            for j in range(1, len(res[i])):
+                self.print_title_result(f'{res[i][j].name}')
+                self.print_body_result(f'{str(res[i][j])}')
+                to_file += f'{i}#{res[i][j].name}\n'
+                to_file += f'{res[i][j]}\n\n\n'
+            if self._save_to_file:
+                self.write_to_file(i.lower(), to_file, flag_config=True)
 
     def get_cdp(self, out_dir=""):
         if out_dir:
